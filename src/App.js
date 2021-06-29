@@ -1,5 +1,5 @@
 import React from 'react'
-
+import { ethers } from 'ethers'
 import BscDapp from '@obsidians/bsc-dapp'
 
 import logo from './logo.svg';
@@ -23,10 +23,10 @@ export default function App () {
     amount: '0.01',
     txHash: ''
   })
+  const [isUpdatingBalance, setIsUpdatingBalance] = React.useState(false)
+  const [balance, updateBalance] = React.useState(0)
   const [contractInfo, setContractInfo] = React.useState({
-    address: '0x33530bb5d7b912e01eb7cc1a27d69dd078cee03a',
-    receiver: '0xd0cda47a263859316febc1eb29a65517ab22926a',
-    amount: '1000',
+    address: '0x4f0c82d339eeba7ed0249f573dc0bcdcb578154f',
     txHash: ''
   })
   const [sig, setSig] = React.useState('')
@@ -35,6 +35,7 @@ export default function App () {
     setEnabled(true)
     setAccount(account)
     updateNetwork(dapp.network)
+    setIsUpdatingBalance(true)
   }), [])
 
   React.useEffect(() => dapp.onNetworkChanged(result => {
@@ -45,6 +46,19 @@ export default function App () {
   React.useEffect(() => dapp.onAccountChanged(account => {
     setAccount(account)
   }), [])
+
+  React.useEffect(async () => {
+    if (isUpdatingBalance == false ) return;
+    console.log("Updating");
+    let address = "0xef49e39074b9741f0ce81722b0bc890565497a7a";
+    let abi = [
+      "function balanceOf(address) view returns (uint)",
+    ];
+    const balance = await dapp.getCoinBalance({address,abi}, "balanceOf", [account.address]);
+    console.log(balance);
+    updateBalance(balance);
+    setIsUpdatingBalance(false)
+  }, [isUpdatingBalance])
 
   const updateNetwork = (network = {}) => {
     if (network.isBscMainnet) {
@@ -79,8 +93,8 @@ export default function App () {
   }
 
   const execute = async () => {
-    const { address, receiver, amount } = contractInfo
-    const txParams = await dapp.executeContract({ address, abi }, 'mint', [receiver, amount])
+    const { address } = contractInfo
+    const txParams = await dapp.executeContract({ address, abi }, 'test')
     const txHash = await dapp.sendTransaction({
       from: account.address,
       value: dapp.parseEther('0'),
@@ -109,9 +123,16 @@ export default function App () {
     accountInfo = (
       <div>
         Current account: <small><code>{account.address}</code></small>
-        <button onClick={() => getBalanceAndHistory()}>Get Balance and History</button>
+        <button onClick={() => refreshBalance()}>Refresh</button>
+        {/* <button onClick={() => getBalanceAndHistory()}>Get Balance and History</button> */}
+        <br />
+        Balance:{balance.toString()}
       </div>
     )
+  }
+
+  const refreshBalance = async () => {
+    setIsUpdatingBalance(true)
   }
 
   const getBalanceAndHistory = async () => {
@@ -174,15 +195,15 @@ export default function App () {
       <div>
         Contract
       </div>
-      contract:
       <input
         value={contractInfo.address}
         onChange={(e) => setContractInfo({ ...contractInfo, address: e.target.value })}
         placeholder="Contract Address"
+        style={{ width:"300px" }}
       />
       <br />
-      method: mint
-      <br />
+      method: test
+      {/* <br />
       param1 (receiver):
       <input
         value={contractInfo.receiver}
@@ -195,12 +216,12 @@ export default function App () {
         value={contractInfo.amount}
         onChange={(e) => setContractInfo({ ...contractInfo, amount: e.target.value })}
         placeholder="Amount"
-      />
+      /> */}
       <br />
-      <button onClick={() => execute()}>Execute</button>
+      <button onClick={() => execute()} style={{margin:"30px"}}>Execute</button>
       {
         !!contractInfo.txHash &&
-        <div>{contractInfo.txHash}</div>
+        <div><a href={"https://testnet.bscscan.com/tx/"+contractInfo.txHash} >{contractInfo.txHash}</a></div>
       }
     </div>
   }
@@ -213,8 +234,8 @@ export default function App () {
         {enableButton}
         {accountInfo}
         {networkInfo}
-        {signMessageButton}
-        {transferForm}
+        {/* {signMessageButton} */}
+        {/* {transferForm} */}
         {contractForm}
       </header>
     </div>
